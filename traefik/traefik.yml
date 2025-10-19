@@ -1,10 +1,41 @@
-# traefik/traefik.yml
+# # traefik/traefik.yml
+# accessLog: {}
+# log:
+#   level: INFO
+# providers:
+#   docker:
+#     endpoint: "unix:///var/run/docker.sock"
+#     exposedByDefault: false
+# api:
+#   dashboard: true
+
 accessLog: {}
 log:
   level: INFO
+
+# EntryPoints configuration
+entryPoints:
+  web:
+    address: ":80"
+  websecure:
+    address: ":443"
+
+# Certificate resolvers
+certificatesResolvers:
+  le:
+    acme:
+      email: jorgeguillermoolarte@gmail.com
+      storage: /data/acme.json
+      tlsChallenge: {}
+
+# Providers
 providers:
   docker:
     endpoint: "unix:///var/run/docker.sock"
     exposedByDefault: false
+  file:
+    filename: /etc/traefik/dynamic.yml
+
 api:
   dashboard: true
+  insecure: true # Keep this or add proper authentication

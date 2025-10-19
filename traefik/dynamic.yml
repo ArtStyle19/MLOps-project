@@ -1,4 +1,12 @@
-# traefik/dynamic.yml
+# # traefik/dynamic.yml
+# http:
+#   middlewares:
+#     secure-headers:
+#       headers:
+#         frameDeny: true
+#         browserXssFilter: true
+#         contentTypeNosniff: true
+
 http:
   middlewares:
     secure-headers:
@@ -6,3 +14,14 @@ http:
         frameDeny: true
         browserXssFilter: true
         contentTypeNosniff: true
+        sslRedirect: true
+
+    redirect-to-https:
+      redirectScheme:
+        scheme: https
+        permanent: true
+
+tls:
+  options:
+    default:
+      minVersion: VersionTLS12

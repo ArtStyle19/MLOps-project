@@ -1,4 +1,102 @@
-# docker-compose.prod.yml
+# # docker-compose.prod.yml
+# version: "3.9"
+
+# services:
+#   traefik:
+#     image: traefik:v3.0
+#     container_name: traefik
+#     restart: unless-stopped
+#     command:
+#       - --global.sendAnonymousUsage=false
+#       - --log.level=INFO
+
+#       # Entrypoints
+#       - --entrypoints.web.address=:80
+#       - --entrypoints.websecure.address=:443
+
+#       # Providers
+#       - --providers.docker=true
+#       - --providers.docker.exposedbydefault=false
+
+#       # Let's Encrypt (ACME) HTTP challenge
+#       # - --certificatesresolvers.le.acme.tlschallenge=false
+#       - --certificatesresolvers.le.acme.tlschallenge=true # Use TLS challenge instead of HTTP
+#       # - --certificatesresolvers.le.acme.httpchallenge=true
+#       # - --certificatesresolvers.le.acme.httpchallenge.entrypoint=web
+#       - --certificatesresolvers.le.acme.email=${LETSENCRYPT_EMAIL:-jorgeguillermoolarte@gmail.com}
+#       - --certificatesresolvers.le.acme.storage=/data/acme.json
+
+#       # Dashboard (optional)
+#       - --api=true
+#       - --api.dashboard=true
+
+#     ports:
+#       - "80:80"
+#       - "443:443"
+#       - "8080:8080" # optional Traefik dashboard port if you want external access
+
+#     environment:
+#       - LETSENCRYPT_EMAIL=${LETSENCRYPT_EMAIL:-jorgeguillermoolarte@gmail.com}
+#     volumes:
+#       - /var/run/docker.sock:/var/run/docker.sock:ro
+#       - traefik_acme:/data
+#       - ./traefik/traefik.yml:/etc/traefik/traefik.yml:ro
+#       - ./traefik/dynamic.yml:/etc/traefik/dynamic.yml:ro
+
+#     labels:
+#       # Expose dashboard on internal network only; comment out or secure if enabling externally
+#       - "traefik.http.routers.traefik.rule=Host(`${TRAEFIK_HOST:-traefik.settinel.lat}`)"
+#       - "traefik.http.routers.traefik.entrypoints=websecure"
+#       - "traefik.http.routers.traefik.tls=true"
+#       - "traefik.http.routers.traefik.tls.certresolver=le"
+#       - "traefik.enable=true"
+
+#   backend:
+#     build:
+#       context: ./backend
+#       dockerfile: Dockerfile
+#     image: ${DOCKERHUB_USER:-guillermoolarte}/fullstack-backend:${BACKEND_TAG:-latest}
+#     container_name: fullstack_backend
+#     restart: unless-stopped
+#     expose:
+#       - "5000"
+#     labels:
+#       - "traefik.enable=true"
+#       - "traefik.http.routers.backend.rule=Host(`${API_DOMAIN:-api.settinel.lat}`) && PathPrefix(`/api`)"
+#       - "traefik.http.routers.backend.entrypoints=websecure"
+#       - "traefik.http.routers.backend.tls=true"
+#       - "traefik.http.routers.backend.tls.certresolver=le"
+#       - "traefik.http.services.backend.loadbalancer.server.port=5000"
+
+#     environment:
+#       - FLASK_ENV=production
+
+#   frontend:
+#     build:
+#       context: ./frontend
+#       dockerfile: Dockerfile
+#     image: ${DOCKERHUB_USER:-guillermoolarte}/fullstack-frontend:${FRONTEND_TAG:-latest}
+#     container_name: fullstack_frontend
+#     restart: unless-stopped
+#     expose:
+#       - "80"
+#     labels:
+#       - "traefik.enable=true"
+#       - "traefik.http.routers.frontend.rule=Host(`${DOMAIN:-settinel.lat}`)"
+#       - "traefik.http.routers.frontend.entrypoints=websecure"
+#       - "traefik.http.routers.frontend.tls=true"
+#         # Redirect HTTP to HTTPS
+#       - "traefik.http.routers.frontend-redirect.rule=Host(`${DOMAIN:-settinel.lat}`) || Host(`www.${DOMAIN:-settinel.lat}`)"
+#       - "traefik.http.routers.frontend-redirect.entrypoints=web"
+#       - "traefik.http.routers.frontend-redirect.middlewares=redirect-to-https"
+#       - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https"
+
+#       - "traefik.http.routers.frontend.tls.certresolver=le"
+#       - "traefik.http.services.frontend.loadbalancer.server.port=80"
+
+# volumes:
+#   traefik_acme:
+
 version: "3.9"
 
 services:
@@ -7,33 +105,11 @@ services:
     container_name: traefik
     restart: unless-stopped
     command:
-      - --global.sendAnonymousUsage=false
-      - --log.level=INFO
-
-      # Entrypoints
-      - --entrypoints.web.address=:80
-      - --entrypoints.websecure.address=:443
-
-      # Providers
-      - --providers.docker=true
-      - --providers.docker.exposedbydefault=false
-
-      # Let's Encrypt (ACME) HTTP challenge
-      # - --certificatesresolvers.le.acme.tlschallenge=false
-      - --certificatesresolvers.le.acme.tlschallenge=true # Use TLS challenge instead of HTTP
-      # - --certificatesresolvers.le.acme.httpchallenge=true
-      # - --certificatesresolvers.le.acme.httpchallenge.entrypoint=web
-      - --certificatesresolvers.le.acme.email=${LETSENCRYPT_EMAIL:-jorgeguillermoolarte@gmail.com}
-      - --certificatesresolvers.le.acme.storage=/data/acme.json
-
-      # Dashboard (optional)
-      - --api=true
-      - --api.dashboard=true
-
+      - --configFile=/etc/traefik/traefik.yml
     ports:
       - "80:80"
       - "443:443"
-      - "8080:8080" # optional Traefik dashboard port if you want external access
+      - "8080:8080"
 
     environment:
       - LETSENCRYPT_EMAIL=${LETSENCRYPT_EMAIL:-jorgeguillermoolarte@gmail.com}
@@ -44,12 +120,13 @@ services:
       - ./traefik/dynamic.yml:/etc/traefik/dynamic.yml:ro
 
     labels:
-      # Expose dashboard on internal network only; comment out or secure if enabling externally
+      - "traefik.enable=true"
+      # Dashboard (optional - remove if you don't want external access)
       - "traefik.http.routers.traefik.rule=Host(`${TRAEFIK_HOST:-traefik.settinel.lat}`)"
       - "traefik.http.routers.traefik.entrypoints=websecure"
       - "traefik.http.routers.traefik.tls=true"
       - "traefik.http.routers.traefik.tls.certresolver=le"
-      - "traefik.enable=true"
+      - "traefik.http.routers.traefik.service=api@internal"
 
   backend:
     build:
@@ -67,6 +144,7 @@ services:
       - "traefik.http.routers.backend.tls=true"
       - "traefik.http.routers.backend.tls.certresolver=le"
       - "traefik.http.services.backend.loadbalancer.server.port=5000"
+      - "traefik.http.routers.backend.middlewares=secure-headers@file"
 
     environment:
       - FLASK_ENV=production
@@ -82,17 +160,17 @@ services:
       - "80"
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.frontend.rule=Host(`${DOMAIN:-settinel.lat}`)"
+      - "traefik.http.routers.frontend.rule=Host(`${DOMAIN:-settinel.lat}`) || Host(`www.${DOMAIN:-settinel.lat}`)"
       - "traefik.http.routers.frontend.entrypoints=websecure"
       - "traefik.http.routers.frontend.tls=true"
-        # Redirect HTTP to HTTPS
-      - "traefik.http.routers.frontend-redirect.rule=Host(`${DOMAIN:-settinel.lat}`) || Host(`www.${DOMAIN:-settinel.lat}`)"
-      - "traefik.http.routers.frontend-redirect.entrypoints=web"
-      - "traefik.http.routers.frontend-redirect.middlewares=redirect-to-https"
-      - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https"
-
       - "traefik.http.routers.frontend.tls.certresolver=le"
       - "traefik.http.services.frontend.loadbalancer.server.port=80"
+      - "traefik.http.routers.frontend.middlewares=secure-headers@file"
+
+      # HTTP to HTTPS redirect
+      - "traefik.http.routers.frontend-redirect.rule=Host(`${DOMAIN:-settinel.lat}`) || Host(`www.${DOMAIN:-settinel.lat}`)"
+      - "traefik.http.routers.frontend-redirect.entrypoints=web"
+      - "traefik.http.routers.frontend-redirect.middlewares=redirect-to-https@file"
 
 volumes:
   traefik_acme:
