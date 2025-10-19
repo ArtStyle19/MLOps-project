@@ -72,6 +72,8 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+    environment:
+      - DOMAIN=${DOMAIN}
     image: ${DOCKERHUB_USER:-guillermoolarte}/fullstack-frontend:${FRONTEND_TAG:-latest}
     container_name: fullstack_frontend
     restart: unless-stopped
