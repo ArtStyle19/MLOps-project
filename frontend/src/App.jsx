@@ -10,7 +10,7 @@ function App() {
   const [message, setMessage] = useState("Loading...");
 
   useEffect(() => {
-    fetch(`${import.meta.env.VITE_API_URL}/api/data`)
+    fetch(`${import.meta.env.VITE_API_URL}/api`)
       .then((res) => res.json())
       .then((data) => setMessage(data.message))
       .catch((err) => setMessage("Error: " + err.message));
