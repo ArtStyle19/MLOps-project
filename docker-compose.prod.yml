@@ -45,7 +45,7 @@ services:
 
     labels:
       # Expose dashboard on internal network only; comment out or secure if enabling externally
-      - "traefik.http.routers.traefik.rule=Host(`${TRAEFIK_HOST:-traefik.${DOMAIN}}`)"
+      - "traefik.http.routers.traefik.rule=Host(`${TRAEFIK_HOST:-traefik.settinel.lat}`)"
       - "traefik.http.routers.traefik.entrypoints=websecure"
       - "traefik.http.routers.traefik.tls=true"
       - "traefik.http.routers.traefik.tls.certresolver=le"
@@ -62,7 +62,7 @@ services:
       - "5000"
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.backend.rule=Host(`${API_DOMAIN:-api.${DOMAIN}`}) && PathPrefix(`/api`)"
+      - "traefik.http.routers.backend.rule=Host(`${API_DOMAIN:-api.settinel.lat}`) && PathPrefix(`/api`)"
       - "traefik.http.routers.backend.entrypoints=websecure"
       - "traefik.http.routers.backend.tls=true"
       - "traefik.http.routers.backend.tls.certresolver=le"
@@ -75,8 +75,6 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    environment:
-      - DOMAIN=${DOMAIN}
     image: ${DOCKERHUB_USER:-guillermoolarte}/fullstack-frontend:${FRONTEND_TAG:-latest}
     container_name: fullstack_frontend
     restart: unless-stopped
@@ -84,11 +82,11 @@ services:
       - "80"
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.frontend.rule=Host(`${DOMAIN}`)"
+      - "traefik.http.routers.frontend.rule=Host(`${DOMAIN:-settinel.lat}`)"
       - "traefik.http.routers.frontend.entrypoints=websecure"
       - "traefik.http.routers.frontend.tls=true"
         # Redirect HTTP to HTTPS
-      - "traefik.http.routers.frontend-redirect.rule=Host(`${DOMAIN}`) || Host(`www.${DOMAIN}`)"
+      - "traefik.http.routers.frontend-redirect.rule=Host(`${DOMAIN:-settinel.lat}`) || Host(`www.${DOMAIN:-settinel.lat}`)"
       - "traefik.http.routers.frontend-redirect.entrypoints=web"
       - "traefik.http.routers.frontend-redirect.middlewares=redirect-to-https"
       - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https"
