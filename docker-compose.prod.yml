@@ -23,7 +23,7 @@ services:
       - --certificatesresolvers.le.acme.tlschallenge=true # Use TLS challenge instead of HTTP
       # - --certificatesresolvers.le.acme.httpchallenge=true
       # - --certificatesresolvers.le.acme.httpchallenge.entrypoint=web
-      - --certificatesresolvers.le.acme.email=${LETSENCRYPT_EMAIL}
+      - --certificatesresolvers.le.acme.email=${LETSENCRYPT_EMAIL:-jorgeguillermoolarte@gmail.com}
       - --certificatesresolvers.le.acme.storage=/data/acme.json
 
       # Dashboard (optional)
@@ -36,7 +36,7 @@ services:
       - "8080:8080" # optional Traefik dashboard port if you want external access
 
     environment:
-      - LETSENCRYPT_EMAIL=${LETSENCRYPT_EMAIL:-admin@yourdomain.com}
+      - LETSENCRYPT_EMAIL=${LETSENCRYPT_EMAIL:-jorgeguillermoolarte@gmail.com}
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - traefik_acme:/data
