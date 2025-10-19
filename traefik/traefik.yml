@@ -1,0 +1,10 @@
+# traefik/traefik.yml
+accessLog: {}
+log:
+  level: INFO
+providers:
+  docker:
+    endpoint: "unix:///var/run/docker.sock"
+    exposedByDefault: false
+api:
+  dashboard: true

@@ -1,0 +1,8 @@
+# traefik/dynamic.yml
+http:
+  middlewares:
+    secure-headers:
+      headers:
+        frameDeny: true
+        browserXssFilter: true
+        contentTypeNosniff: true
