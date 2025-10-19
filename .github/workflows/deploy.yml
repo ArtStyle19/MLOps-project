@@ -57,7 +57,7 @@ jobs:
           password: ${{ secrets.VPS_PASSWORD }}
           port: ${{ secrets.VPS_PORT }}
           script: |
-            cd /root/mlops-project || exit 1
+            cd /var/www/mlops-project || exit 1
             # pull latest images and recreate services
             docker compose -f docker-compose.prod.yml pull
             docker compose -f docker-compose.prod.yml up -d --remove-orphans
