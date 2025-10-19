@@ -42,32 +42,49 @@ jobs:
           push: true
           tags: ${{ env.DOCKER_IMAGE_FRONT }}:latest
 
-  deploy:
-    needs: build-and-push
-    runs-on: ubuntu-latest
-    steps:
-      - name: Wait a few seconds
-        run: sleep 5
+deploy:
+  needs: build-and-push
+  runs-on: ubuntu-latest
+  steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
 
-      - name: Upload project files to VPS
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.VPS_HOST }}
-          username: ${{ secrets.VPS_USERNAME }}
-          password: ${{ secrets.VPS_PASSWORD }}
-          port: ${{ secrets.VPS_PORT }}
-          source: "."
-          target: "/var/www/mlops-project"
+    - name: Upload project files to VPS
+      uses: appleboy/scp-action@v0.1.7
+      with:
+        host: ${{ secrets.VPS_HOST }}
+        username: ${{ secrets.VPS_USERNAME }}
+        password: ${{ secrets.VPS_PASSWORD }}
+        port: ${{ secrets.VPS_PORT }}
+        source: "."
+        target: "/var/www/mlops-project"
+        strip_components: 0
+        overwrite: true
+        rm_dest: true # This removes the destination first to ensure clean copy
 
-      - name: Deploy to VPS via SSH
-        uses: appleboy/ssh-action@v1.1.0
-        with:
-          host: ${{ secrets.VPS_HOST }}
-          username: ${{ secrets.VPS_USERNAME }}
-          password: ${{ secrets.VPS_PASSWORD }}
-          port: ${{ secrets.VPS_PORT }}
-          script: |
-            cd /var/www/mlops-project || exit 1
-            docker compose -f docker-compose.prod.yml pull
-            docker compose -f docker-compose.prod.yml up -d --remove-orphans
-            docker image prune -f
+    - name: Deploy to VPS via SSH
+      uses: appleboy/ssh-action@v1.1.0
+      with:
+        host: ${{ secrets.VPS_HOST }}
+        username: ${{ secrets.VPS_USERNAME }}
+        password: ${{ secrets.VPS_PASSWORD }}
+        port: ${{ secrets.VPS_PORT }}
+        script: |
+          # Fix permissions and ensure directory exists
+          sudo mkdir -p /var/www/mlops-project
+          sudo chown -R $USER:$USER /var/www/mlops-project
+          sudo chmod -R 755 /var/www/mlops-project
+
+          cd /var/www/mlops-project
+          echo "Contents of mlops-project:"
+          ls -la
+          echo "Checking for docker-compose files:"
+          ls -la *.yml || echo "No YAML files found"
+          ls -la *.yaml || echo "No YAML files found"
+
+          # Pull and deploy
+          docker compose -f docker-compose.prod.yml pull
+          docker compose -f docker-compose.prod.yml up -d --remove-orphans
+          docker image prune -f
