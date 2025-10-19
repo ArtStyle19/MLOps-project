@@ -19,9 +19,10 @@ services:
       - --providers.docker.exposedbydefault=false
 
       # Let's Encrypt (ACME) HTTP challenge
-      - --certificatesresolvers.le.acme.tlschallenge=false
-      - --certificatesresolvers.le.acme.httpchallenge=true
-      - --certificatesresolvers.le.acme.httpchallenge.entrypoint=web
+      # - --certificatesresolvers.le.acme.tlschallenge=false
+      - --certificatesresolvers.le.acme.tlschallenge=true # Use TLS challenge instead of HTTP
+      # - --certificatesresolvers.le.acme.httpchallenge=true
+      # - --certificatesresolvers.le.acme.httpchallenge.entrypoint=web
       - --certificatesresolvers.le.acme.email=${LETSENCRYPT_EMAIL}
       - --certificatesresolvers.le.acme.storage=/data/acme.json
 
@@ -32,8 +33,10 @@ services:
     ports:
       - "80:80"
       - "443:443"
-      # - "8080:8080"  # optional Traefik dashboard port if you want external access
+      - "8080:8080" # optional Traefik dashboard port if you want external access
 
+    environment:
+      - LETSENCRYPT_EMAIL=${LETSENCRYPT_EMAIL:-admin@yourdomain.com}
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - traefik_acme:/data
@@ -84,6 +87,12 @@ services:
       - "traefik.http.routers.frontend.rule=Host(`${DOMAIN}`)"
       - "traefik.http.routers.frontend.entrypoints=websecure"
       - "traefik.http.routers.frontend.tls=true"
+        # Redirect HTTP to HTTPS
+      - "traefik.http.routers.frontend-redirect.rule=Host(`${DOMAIN}`) || Host(`www.${DOMAIN}`)"
+      - "traefik.http.routers.frontend-redirect.entrypoints=web"
+      - "traefik.http.routers.frontend-redirect.middlewares=redirect-to-https"
+      - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https"
+
       - "traefik.http.routers.frontend.tls.certresolver=le"
       - "traefik.http.services.frontend.loadbalancer.server.port=80"
 
