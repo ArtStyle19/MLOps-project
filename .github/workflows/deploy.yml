@@ -49,15 +49,25 @@ jobs:
       - name: Wait a few seconds
         run: sleep 5
 
-      - name: Copy deploy scripts to server and run docker compose
-        uses: appleboy/ssh-action@v0.1.9
+      - name: Upload project files to VPS
+        uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.VPS_HOST }}
-          username: ${{ secrets.VPS_USERNAME }}
+          username: ${{ secrets.VPS_USER }}
+          password: ${{ secrets.VPS_PASSWORD }}
+          port: ${{ secrets.VPS_PORT }}
+          source: "."
+          target: "/var/www/mlops-project"
+
+      - name: Deploy to VPS via SSH
+        uses: appleboy/ssh-action@v1.1.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
           password: ${{ secrets.VPS_PASSWORD }}
           port: ${{ secrets.VPS_PORT }}
           script: |
             cd /var/www/mlops-project || exit 1
-            # pull latest images and recreate services
             docker compose -f docker-compose.prod.yml pull
             docker compose -f docker-compose.prod.yml up -d --remove-orphans
+            docker image prune -f
