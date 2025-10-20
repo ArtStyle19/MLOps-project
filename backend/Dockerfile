@@ -24,9 +24,6 @@ RUN apt-get update && apt-get install -y \
     libjpeg62-turbo \
     libtiff5 \
     libpng16-16 \
-    libavcodec58 \
-    libavformat58 \
-    libswscale5 \
     libv4l-0 \
     && rm -rf /var/lib/apt/lists/*
 
