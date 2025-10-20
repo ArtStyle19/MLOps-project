@@ -33,6 +33,8 @@ import time
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+from model_loader import load_yolo_model
+
 app = FastAPI(
     title="Safety Vest Detection API",
     description="Real-time safety vest detection using YOLO and WebSockets",
@@ -183,41 +185,21 @@ class ConnectionManager:
 
 # Global instances
 connection_manager = ConnectionManager()
+
+# -----------------------------
+# 🔥 Cargar modelo desde S3 al iniciar
+# -----------------------------
 model = None
 
 @app.on_event("startup")
 async def startup_event():
-    """Initialize the application on startup"""
     global model
     try:
-        # Try to load custom safety vest model
-        model_paths = [
-            "modelo_entrenado/chaleco_detection/weights/epoch20.pt",
-            "../modelo_entrenado/chaleco_detection/weights/epoch20.pt",
-            "chaleco_detection/weights/epoch20.pt",
-            "./epoch20.pt",
-            "weights/epoch20.pt",
-            "./weights/epoch20.pt",
-            os.path.join(os.getcwd(), "weights/epoch20.pt")
-        ]
-        
-        model_path = None
-        for path in model_paths:
-            if os.path.exists(path):
-                model_path = path
-                logger.info(f"Found model at: {path}")
-                break
-        
-        if model_path:
-            model = YOLO(model_path)
-            logger.info(f"✅ Safety vest model loaded from: {model_path}")
-        else:
-            # Fallback to pre-trained YOLO model
-            model = YOLO('yolov8n.pt')
-            logger.warning("⚠️ Using pre-trained YOLO model (not specific for safety vests)")
-            
+        logger.info("🚀 Iniciando carga del modelo desde S3...")
+        model = load_yolo_model()
+        logger.info("✅ Modelo cargado correctamente desde S3")
     except Exception as e:
-        logger.error(f"❌ Error loading model: {e}")
+        logger.error(f"❌ Error al cargar el modelo: {e}")
         model = None
 
 

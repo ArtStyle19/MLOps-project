@@ -155,6 +155,12 @@ services:
 
     environment:
       - FLASK_ENV=production
+      - PORT=${PORT:-5000}
+      - LOCAL_MODEL_PATH=${LOCAL_MODEL_PATH:-/app/weights/epoch20.pt}
+      # NOTA: si usas EC2 con role, NO pongas AWS keys en .env (boto3 utilizará role)
+      - AWS_REGION=${AWS_REGION}
+      - S3_BUCKET=${S3_BUCKET}
+      - S3_KEY=${S3_KEY}
 
   frontend:
     build:
