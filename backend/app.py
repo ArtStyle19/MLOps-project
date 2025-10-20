@@ -192,11 +192,13 @@ async def startup_event():
     try:
         # Try to load custom safety vest model
         model_paths = [
-            "modelo_entrenado/chaleco_detection/weights/best.pt",
-            "../modelo_entrenado/chaleco_detection/weights/best.pt",
-            "chaleco_detection/weights/best.pt",
-            "./best.pt",
-            "weights/best.pt"
+            "modelo_entrenado/chaleco_detection/weights/epoch20.pt",
+            "../modelo_entrenado/chaleco_detection/weights/epoch20.pt",
+            "chaleco_detection/weights/epoch20.pt",
+            "./epoch20.pt",
+            "weights/epoch20.pt",
+            "./weights/epoch20.pt",
+            os.path.join(os.getcwd(), "weights/epoch20.pt")
         ]
         
         model_path = None

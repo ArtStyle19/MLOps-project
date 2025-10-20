@@ -146,6 +146,13 @@ services:
       - "traefik.http.services.backend.loadbalancer.server.port=5000"
       - "traefik.http.routers.backend.middlewares=secure-headers@file"
 
+      # WebSocket routes
+      - "traefik.http.routers.backend-websocket.rule=Host(`${API_DOMAIN:-api.settinel.lat}`) && PathPrefix(`/ws`)"
+      - "traefik.http.routers.backend-websocket.entrypoints=websecure"
+      - "traefik.http.routers.backend-websocket.tls=true"
+      - "traefik.http.routers.backend-websocket.tls.certresolver=le"
+      - "traefik.http.routers.backend-websocket.middlewares=secure-headers@file,websocket-headers@file"
+
     environment:
       - FLASK_ENV=production
 

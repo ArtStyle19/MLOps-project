@@ -5,7 +5,6 @@ import viteLogo from "/vite.svg";
 // import React, { useEffect, useState } from "react";
 import React, { useState, useEffect, useRef } from "react";
 import "./App.css";
-
 function App() {
   const [message, setMessage] = useState("Loading...");
   const [isConnected, setIsConnected] = useState(false);
@@ -34,7 +33,6 @@ function App() {
   const connectWebSocket = () => {
     const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
     const wsUrl = `${protocol}//api.settinel.lat/ws/camera`;
-
     ws.current = new WebSocket(wsUrl);
 
     ws.current.onopen = () => {
