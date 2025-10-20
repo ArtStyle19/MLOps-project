@@ -22,7 +22,6 @@ RUN apt-get update && apt-get install -y \
     libgl1 \
     libgomp1 \
     libjpeg62-turbo \
-    libtiff5 \
     libpng16-16 \
     libv4l-0 \
     && rm -rf /var/lib/apt/lists/*
