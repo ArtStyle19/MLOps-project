@@ -33,7 +33,7 @@ import time
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-from model_loader import load_yolo_model
+from model_loader import download_model_from_s3, load_yolo_model
 
 app = FastAPI(
     title="Safety Vest Detection API",
@@ -196,7 +196,8 @@ async def startup_event():
     global model
     try:
         logger.info("🚀 Iniciando carga del modelo desde S3...")
-        model = load_yolo_model()
+        weights_path = download_model_from_s3()
+        model = load_yolo_model(weights_path)  # ✅ Pasar el path
         logger.info("✅ Modelo cargado correctamente desde S3")
     except Exception as e:
         logger.error(f"❌ Error al cargar el modelo: {e}")

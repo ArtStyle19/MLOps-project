@@ -44,21 +44,33 @@ def download_model_from_s3():
         raise
 
 
-def load_yolo_model():
-    """Carga el modelo YOLO desde S3 o caché local"""
-    local_path = download_model_from_s3()
-    logger.info("🚀 Cargando modelo YOLO...")
-
+def load_yolo_model(weights_path: str):
     try:
-        # 🔒 Agregamos la clase DetectionModel a la lista de permitidas
-        from torch.serialization import add_safe_globals
-        from ultralytics.nn.tasks import DetectionModel
+        logger.info("🚀 Cargando modelo YOLO...")
 
-        add_safe_globals([DetectionModel])
+        # ⚠️ Evita el error de weights_only
+        # Permitir clases necesarias para el modelo YOLO
+        torch.serialization.add_safe_globals([
+            torch.nn.modules.container.Sequential,
+            __import__("ultralytics").nn.tasks.DetectionModel
+        ])
 
-        model = YOLO(local_path)
-        logger.info("✅ Modelo YOLO cargado exitosamente.")
+        # Intenta cargar normalmente
+        model = YOLO(weights_path)
+
+        logger.info("✅ Modelo YOLO cargado correctamente")
         return model
+
     except Exception as e:
         logger.error(f"❌ Error al cargar el modelo YOLO: {e}")
-        raise
+        # Intento alternativo si falla
+        try:
+            logger.warning("⚠️ Reintentando con weights_only=False...")
+            state_dict = torch.load(weights_path, map_location="cpu", weights_only=False)
+            model = YOLO()
+            model.model.load_state_dict(state_dict)
+            logger.info("✅ Modelo cargado con método alternativo")
+            return model
+        except Exception as e2:
+            logger.error(f"❌ Segundo intento fallido: {e2}")
+            raise
