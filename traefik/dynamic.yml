@@ -1,27 +1,70 @@
-# # traefik/dynamic.yml
-# http:
-#   middlewares:
-#     secure-headers:
-#       headers:
-#         frameDeny: true
-#         browserXssFilter: true
-#         contentTypeNosniff: true
-
 http:
   middlewares:
-    secure-headers:
-      headers:
-        frameDeny: true
-        browserXssFilter: true
-        contentTypeNosniff: true
-        sslRedirect: true
-
+    # Redirect HTTP to HTTPS
     redirect-to-https:
       redirectScheme:
         scheme: https
         permanent: true
 
-tls:
-  options:
-    default:
-      minVersion: VersionTLS12
+    # CORS headers
+    cors-headers:
+      headers:
+        accessControlAllowCredentials: true
+        accessControlAllowHeaders:
+          - "*"
+        accessControlAllowMethods:
+          - "GET,POST,PUT,DELETE,OPTIONS"
+        accessControlAllowOriginList:
+          - "https://settinel.lat"
+          - "https://www.settinel.lat"
+          - "https://api.settinel.lat"
+          - "http://localhost:3000"
+          - "http://127.0.0.1:3000"
+
+    # WebSocket support
+    websocket-headers:
+      headers:
+        customRequestHeaders:
+          X-Forwarded-Proto: "https"
+
+  routers:
+    # Backend API - ALL routes
+    backend-all:
+      rule: "Host(`api.settinel.lat`)"
+      entryPoints:
+        - "websecure"
+      middlewares:
+        - "cors-headers"
+      service: "backend"
+      tls:
+        certResolver: "le"
+
+    # Frontend
+    frontend:
+      rule: "Host(`settinel.lat`) || Host(`www.settinel.lat`)"
+      entryPoints:
+        - "websecure"
+      service: "frontend"
+      tls:
+        certResolver: "le"
+
+    # HTTP to HTTPS redirect for frontend
+    frontend-redirect:
+      rule: "Host(`settinel.lat`) || Host(`www.settinel.lat`)"
+      entryPoints:
+        - "web"
+      middlewares:
+        - "redirect-to-https"
+      service: "frontend"
+
+  services:
+    backend:
+      loadBalancer:
+        servers:
+          - url: "http://backend:5000"
+        passHostHeader: true
+
+    frontend:
+      loadBalancer:
+        servers:
+          - url: "http://frontend:80"
