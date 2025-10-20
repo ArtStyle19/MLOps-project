@@ -10,3 +10,5 @@ websockets==12.0
 requests==2.31.0
 boto3
 python-dotenv
+torch
+torchvision

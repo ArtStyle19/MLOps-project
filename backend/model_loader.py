@@ -1,5 +1,6 @@
 import os
 import boto3
+import torch
 import logging
 from botocore.exceptions import NoCredentialsError, ClientError
 from ultralytics import YOLO
@@ -10,7 +11,7 @@ def download_model_from_s3():
     """Descarga el modelo desde S3 si no está en el servidor"""
     local_path = "weights/epoch20.pt"   # Dónde se guardará localmente
     bucket_name = "mlops-bucket-vicari"
-    s3_key = "epoch20.pt"               # 👈 Archivo subido directamente (sin carpetas)
+    s3_key = "epoch20.pt"                 # 👈 Archivo subido directamente (sin carpetas)
 
     if os.path.exists(local_path):
         logger.info(f"✅ Modelo ya existe en {local_path}")
@@ -47,6 +48,17 @@ def load_yolo_model():
     """Carga el modelo YOLO desde S3 o caché local"""
     local_path = download_model_from_s3()
     logger.info("🚀 Cargando modelo YOLO...")
-    model = YOLO(local_path)
-    logger.info("✅ Modelo YOLO cargado exitosamente.")
-    return model
+
+    try:
+        # 🔒 Agregamos la clase DetectionModel a la lista de permitidas
+        from torch.serialization import add_safe_globals
+        from ultralytics.nn.tasks import DetectionModel
+
+        add_safe_globals([DetectionModel])
+
+        model = YOLO(local_path)
+        logger.info("✅ Modelo YOLO cargado exitosamente.")
+        return model
+    except Exception as e:
+        logger.error(f"❌ Error al cargar el modelo YOLO: {e}")
+        raise
