@@ -189,7 +189,8 @@ connection_manager = ConnectionManager()
 # -----------------------------
 # 🔥 Cargar modelo desde S3 al iniciar
 # -----------------------------
-model = None
+weights_path = download_model_from_s3()
+model = load_yolo_model(weights_path)
 
 @app.on_event("startup")
 async def startup_event():

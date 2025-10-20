@@ -47,14 +47,6 @@ def download_model_from_s3():
 def load_yolo_model(weights_path: str):
     try:
         logger.info("🚀 Cargando modelo YOLO...")
-
-        # ⚠️ Evita el error de weights_only
-        # Permitir clases necesarias para el modelo YOLO
-        torch.serialization.add_safe_globals([
-            torch.nn.modules.container.Sequential,
-            __import__("ultralytics").nn.tasks.DetectionModel
-        ])
-
         # Intenta cargar normalmente
         model = YOLO(weights_path)
 
