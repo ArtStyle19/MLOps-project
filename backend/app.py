@@ -356,15 +356,11 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# CORS middleware - Configuración más específica
+# CORS middleware - Allow all origins for WebSocket compatibility
+# Traefik handles the actual CORS through middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "https://settinel.lat",
-        "https://www.settinel.lat", 
-        "http://localhost:3000",
-        "http://127.0.0.1:3000"
-    ],
+    allow_origins=["*"],  # Traefik will filter this
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

@@ -90,7 +90,7 @@ http:
         scheme: https
         permanent: true
 
-    # CORS headers mejorado para WebSockets
+    # CORS headers - Allow all origins (frontend filters in browser)
     cors-headers:
       headers:
         accessControlAllowCredentials: true
@@ -107,23 +107,14 @@ http:
         accessControlMaxAge: 100
         addVaryHeader: true
 
-    # WebSocket support mejorado
-    websocket-headers:
-      headers:
-        customRequestHeaders:
-          X-Forwarded-Proto: "https"
-        customResponseHeaders:
-          X-WebSocket-Enabled: "true"
-
   routers:
-    # Backend único para API y WebSockets
+    # Backend - Single router for API and WebSocket
     backend:
       rule: "Host(`api.settinel.lat`)"
       entryPoints:
         - "websecure"
       middlewares:
         - "cors-headers"
-        - "websocket-headers"
       service: "backend"
       tls:
         certResolver: "le"
@@ -150,10 +141,10 @@ http:
     backend:
       loadBalancer:
         servers:
-          - url: "http://backend:5000"
+          - url: "http://fullstack_backend:5000"
         passHostHeader: true
 
     frontend:
       loadBalancer:
         servers:
-          - url: "http://frontend:80"
+          - url: "http://fullstack_frontend:80"
