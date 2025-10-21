@@ -513,6 +513,47 @@ async def startup_event():
         logger.error(f"❌ Error al cargar el modelo: {e}")
         model = None
 
+
+
+
+# Endpoints
+@app.get("/")
+async def root():
+    return {
+        "message": "Safety Vest Detection API", 
+        "status": "running",
+        "model_loaded": model is not None
+    }
+
+@app.get("/api")
+async def api_root():
+    model_status = "Safety vest model loaded" if model and hasattr(model, 'names') and any('chaleco' in name for name in model.names.values()) else "Pre-trained model (generic)"
+    return {
+        "message": f"Hello from FastAPI + Safety Vest Detection! - {model_status}",
+        "model_loaded": model is not None
+    }
+
+@app.get("/api/status")
+async def get_status():
+    return {
+        "status": "running",
+        "model_loaded": model is not None,
+        "model_type": "safety_vest" if model and hasattr(model, 'names') and any('chaleco' in name for name in model.names.values()) else "generic",
+        "active_connections": len(connection_manager.active_connections),
+        "timestamp": time.time()
+    }
+
+@app.get("/api/statistics")
+async def get_statistics():
+    return connection_manager.detection_stats
+
+@app.post("/api/reset_statistics")
+async def reset_statistics():
+    for client_id in connection_manager.detection_stats:
+        connection_manager.detection_stats[client_id] = {'sin_chaleco': 0, 'con_chaleco': 0}
+    return {"message": "Statistics reset successfully"}
+
+
 # Endpoints (mantener los mismos que tenías)
 
 # WebSocket para procesar frames del CLIENTE - VERSIÓN MEJORADA
