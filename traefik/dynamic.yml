@@ -1,3 +1,87 @@
+# http:
+#   middlewares:
+#     # Redirect HTTP to HTTPS
+#     redirect-to-https:
+#       redirectScheme:
+#         scheme: https
+#         permanent: true
+
+#     # CORS headers
+#     cors-headers:
+#       headers:
+#         accessControlAllowCredentials: true
+#         accessControlAllowHeaders:
+#           - "*"
+#         accessControlAllowMethods:
+#           - "GET,POST,PUT,DELETE,OPTIONS"
+#         accessControlAllowOriginList:
+#           - "https://settinel.lat"
+#           - "https://www.settinel.lat"
+#           - "https://api.settinel.lat"
+#           - "http://localhost:3000"
+#           - "http://127.0.0.1:3000"
+
+#     # WebSocket support
+#     websocket-headers:
+#       headers:
+#         customRequestHeaders:
+#           X-Forwarded-Proto: "https"
+
+#     # Secure headers (el que estaba faltando)
+#     secure-headers:
+#       headers:
+#         sslRedirect: true
+#         forceSTSHeader: true
+#         stsIncludeSubdomains: true
+#         stsPreload: true
+#         stsSeconds: 31536000
+#         customFrameOptionsValue: "SAMEORIGIN"
+
+#   routers:
+#     # Backend API - ALL routes including WebSocket
+#     backend-all:
+#       rule: "Host(`api.settinel.lat`)"
+#       entryPoints:
+#         - "websecure"
+#       middlewares:
+#         - "cors-headers"
+#         - "websocket-headers"
+#       service: "backend"
+#       tls:
+#         certResolver: "le"
+
+#     # Frontend
+#     frontend:
+#       rule: "Host(`settinel.lat`) || Host(`www.settinel.lat`)"
+#       entryPoints:
+#         - "websecure"
+#       middlewares:
+#         - "secure-headers"
+#       service: "frontend"
+#       tls:
+#         certResolver: "le"
+
+#     # HTTP to HTTPS redirect for frontend
+#     frontend-redirect:
+#       rule: "Host(`settinel.lat`) || Host(`www.settinel.lat`)"
+#       entryPoints:
+#         - "web"
+#       middlewares:
+#         - "redirect-to-https"
+#       service: "frontend"
+
+#   services:
+#     backend:
+#       loadBalancer:
+#         servers:
+#           - url: "http://backend:5000"
+#         passHostHeader: true
+
+#     frontend:
+#       loadBalancer:
+#         servers:
+#           - url: "http://frontend:80"
+
 http:
   middlewares:
     # Redirect HTTP to HTTPS
@@ -6,7 +90,7 @@ http:
         scheme: https
         permanent: true
 
-    # CORS headers
+    # CORS headers mejorado para WebSockets
     cors-headers:
       headers:
         accessControlAllowCredentials: true
@@ -20,26 +104,20 @@ http:
           - "https://api.settinel.lat"
           - "http://localhost:3000"
           - "http://127.0.0.1:3000"
+        accessControlMaxAge: 100
+        addVaryHeader: true
 
-    # WebSocket support
+    # WebSocket support mejorado
     websocket-headers:
       headers:
         customRequestHeaders:
           X-Forwarded-Proto: "https"
-
-    # Secure headers (el que estaba faltando)
-    secure-headers:
-      headers:
-        sslRedirect: true
-        forceSTSHeader: true
-        stsIncludeSubdomains: true
-        stsPreload: true
-        stsSeconds: 31536000
-        customFrameOptionsValue: "SAMEORIGIN"
+        customResponseHeaders:
+          X-WebSocket-Enabled: "true"
 
   routers:
-    # Backend API - ALL routes including WebSocket
-    backend-all:
+    # Backend único para API y WebSockets
+    backend:
       rule: "Host(`api.settinel.lat`)"
       entryPoints:
         - "websecure"
@@ -55,8 +133,6 @@ http:
       rule: "Host(`settinel.lat`) || Host(`www.settinel.lat`)"
       entryPoints:
         - "websecure"
-      middlewares:
-        - "secure-headers"
       service: "frontend"
       tls:
         certResolver: "le"

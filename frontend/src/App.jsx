@@ -42,9 +42,53 @@ function App() {
     ]);
   };
 
+  // const connectWebSocket = () => {
+  //   const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+  //   const wsUrl = `${protocol}//api.settinel.lat/ws/camera`;
+
+  //   console.log("Connecting to WebSocket:", wsUrl);
+  //   addWebsocketMessage("Connecting to WebSocket...");
+
+  //   ws.current = new WebSocket(wsUrl);
+
+  //   ws.current.onopen = () => {
+  //     console.log("✅ WebSocket connected successfully");
+  //     addWebsocketMessage("WebSocket connected successfully");
+  //     setIsConnected(true);
+  //     setConnectionStatus("connected");
+  //   };
+
+  //   ws.current.onmessage = (event) => {
+  //     try {
+  //       const data = JSON.parse(event.data);
+  //       console.log("📨 WebSocket message received:", data.type);
+  //       addWebsocketMessage(`Received: ${data.type}`);
+  //       handleWebSocketMessage(data);
+  //     } catch (error) {
+  //       console.error("❌ Error parsing WebSocket message:", error);
+  //       addWebsocketMessage(`Error: ${error.message}`);
+  //     }
+  //   };
+
+  //   ws.current.onclose = (event) => {
+  //     console.log("🔌 WebSocket disconnected:", event.code, event.reason);
+  //     addWebsocketMessage(`Disconnected: ${event.code} ${event.reason}`);
+  //     setIsConnected(false);
+  //     setIsStreaming(false);
+  //     setIsProcessing(false);
+  //     setConnectionStatus("disconnected");
+  //     stopCamera();
+  //   };
+
+  //   ws.current.onerror = (error) => {
+  //     console.error("💥 WebSocket error:", error);
+  //     addWebsocketMessage("WebSocket error occurred");
+  //     setConnectionStatus("error");
+  //   };
+  // };
+
   const connectWebSocket = () => {
-    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-    const wsUrl = `${protocol}//api.settinel.lat/ws/camera`;
+    const wsUrl = `wss://api.settinel.lat/ws/camera`;
 
     console.log("Connecting to WebSocket:", wsUrl);
     addWebsocketMessage("Connecting to WebSocket...");
@@ -56,6 +100,14 @@ function App() {
       addWebsocketMessage("WebSocket connected successfully");
       setIsConnected(true);
       setConnectionStatus("connected");
+
+      // Test connection immediately
+      ws.current.send(
+        JSON.stringify({
+          action: "test",
+          message: "Connection test",
+        })
+      );
     };
 
     ws.current.onmessage = (event) => {
@@ -78,6 +130,14 @@ function App() {
       setIsProcessing(false);
       setConnectionStatus("disconnected");
       stopCamera();
+
+      // Intentar reconectar después de 5 segundos
+      setTimeout(() => {
+        if (!isConnected) {
+          console.log("🔄 Attempting to reconnect WebSocket...");
+          connectWebSocket();
+        }
+      }, 5000);
     };
 
     ws.current.onerror = (error) => {
