@@ -3,7 +3,6 @@ import "./App.css";
 
 function App() {
   const [message, setMessage] = useState("Loading...");
-  const [isConnected, setIsConnected] = useState(false);
   const [isStreaming, setIsStreaming] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [detectionInfo, setDetectionInfo] = useState({
@@ -16,180 +15,39 @@ function App() {
   const [connectionStatus, setConnectionStatus] = useState("disconnected");
   const [lastUpdate, setLastUpdate] = useState("--");
   const [fps, setFps] = useState(0);
-  const [websocketMessages, setWebsocketMessages] = useState([]);
+  const [apiMessages, setApiMessages] = useState([]);
 
   const videoRef = useRef(null);
   const processedVideoRef = useRef(null);
   const canvasRef = useRef(null);
-  const ws = useRef(null);
   const streamRef = useRef(null);
-  const animationRef = useRef(null);
+  const frameIntervalRef = useRef(null);
   const frameCountRef = useRef(0);
   const lastFpsUpdateRef = useRef(Date.now());
 
-  // Check backend status
+  // Check backend status on load
   useEffect(() => {
-    fetch(`https://api.settinel.lat/api`)
-      .then((res) => res.json())
-      .then((data) => setMessage(data.message))
-      .catch((err) => setMessage("Error: " + err.message));
+    checkBackendStatus();
   }, []);
 
-  const addWebsocketMessage = (message) => {
-    setWebsocketMessages((prev) => [
-      ...prev.slice(-9), // Mantener solo los últimos 10 mensajes
+  const addApiMessage = (message) => {
+    setApiMessages((prev) => [
+      ...prev.slice(-9),
       `${new Date().toLocaleTimeString()}: ${message}`,
     ]);
   };
 
-  // const connectWebSocket = () => {
-  //   const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-  //   const wsUrl = `${protocol}//api.settinel.lat/ws/camera`;
-
-  //   console.log("Connecting to WebSocket:", wsUrl);
-  //   addWebsocketMessage("Connecting to WebSocket...");
-
-  //   ws.current = new WebSocket(wsUrl);
-
-  //   ws.current.onopen = () => {
-  //     console.log("✅ WebSocket connected successfully");
-  //     addWebsocketMessage("WebSocket connected successfully");
-  //     setIsConnected(true);
-  //     setConnectionStatus("connected");
-  //   };
-
-  //   ws.current.onmessage = (event) => {
-  //     try {
-  //       const data = JSON.parse(event.data);
-  //       console.log("📨 WebSocket message received:", data.type);
-  //       addWebsocketMessage(`Received: ${data.type}`);
-  //       handleWebSocketMessage(data);
-  //     } catch (error) {
-  //       console.error("❌ Error parsing WebSocket message:", error);
-  //       addWebsocketMessage(`Error: ${error.message}`);
-  //     }
-  //   };
-
-  //   ws.current.onclose = (event) => {
-  //     console.log("🔌 WebSocket disconnected:", event.code, event.reason);
-  //     addWebsocketMessage(`Disconnected: ${event.code} ${event.reason}`);
-  //     setIsConnected(false);
-  //     setIsStreaming(false);
-  //     setIsProcessing(false);
-  //     setConnectionStatus("disconnected");
-  //     stopCamera();
-  //   };
-
-  //   ws.current.onerror = (error) => {
-  //     console.error("💥 WebSocket error:", error);
-  //     addWebsocketMessage("WebSocket error occurred");
-  //     setConnectionStatus("error");
-  //   };
-  // };
-
-  const connectWebSocket = () => {
-    const wsUrl = `wss://api.settinel.lat/ws/camera`;
-
-    console.log("Connecting to WebSocket:", wsUrl);
-    addWebsocketMessage("Connecting to WebSocket...");
-
-    ws.current = new WebSocket(wsUrl);
-
-    ws.current.onopen = () => {
-      console.log("✅ WebSocket connected successfully");
-      addWebsocketMessage("WebSocket connected successfully");
-      setIsConnected(true);
+  const checkBackendStatus = async () => {
+    try {
+      const response = await fetch("https://api.settinel.lat/api/status");
+      const data = await response.json();
+      setMessage(data.message || "Backend connected");
       setConnectionStatus("connected");
-
-      // Test connection immediately
-      ws.current.send(
-        JSON.stringify({
-          action: "test",
-          message: "Connection test",
-        })
-      );
-    };
-
-    ws.current.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        console.log("📨 WebSocket message received:", data.type);
-        addWebsocketMessage(`Received: ${data.type}`);
-        handleWebSocketMessage(data);
-      } catch (error) {
-        console.error("❌ Error parsing WebSocket message:", error);
-        addWebsocketMessage(`Error: ${error.message}`);
-      }
-    };
-
-    ws.current.onclose = (event) => {
-      console.log("🔌 WebSocket disconnected:", event.code, event.reason);
-      addWebsocketMessage(`Disconnected: ${event.code} ${event.reason}`);
-      setIsConnected(false);
-      setIsStreaming(false);
-      setIsProcessing(false);
-      setConnectionStatus("disconnected");
-      stopCamera();
-
-      // Intentar reconectar después de 5 segundos
-      setTimeout(() => {
-        if (!isConnected) {
-          console.log("🔄 Attempting to reconnect WebSocket...");
-          connectWebSocket();
-        }
-      }, 5000);
-    };
-
-    ws.current.onerror = (error) => {
-      console.error("💥 WebSocket error:", error);
-      addWebsocketMessage("WebSocket error occurred");
+      addApiMessage("Backend status: Connected");
+    } catch (error) {
+      setMessage("Error connecting to backend");
       setConnectionStatus("error");
-    };
-  };
-
-  const handleWebSocketMessage = (data) => {
-    updateLastUpdate();
-    updateFps();
-
-    switch (data.type) {
-      case "detection_result":
-        setIsProcessing(false);
-        addWebsocketMessage(`Detection: ${data.detection.class_name}`);
-
-        if (data.detection) {
-          console.log("🎯 Detection result:", data.detection);
-          setDetectionInfo((prev) => ({
-            ...prev,
-            ...data.detection,
-            statistics: data.detection.statistics || prev.statistics,
-          }));
-        }
-
-        // MOSTRAR EL FRAME PROCESADO CON DETECCIONES
-        if (data.annotated_frame && processedVideoRef.current) {
-          const imageUrl = `data:image/jpeg;base64,${data.annotated_frame}`;
-          processedVideoRef.current.src = imageUrl;
-          console.log("🖼️ Updated processed video frame");
-        } else {
-          console.log("❌ No annotated_frame in response");
-        }
-        break;
-
-      case "error":
-        console.error("❌ Server error:", data.message);
-        addWebsocketMessage(`Server Error: ${data.message}`);
-        setIsProcessing(false);
-        alert(`Error del servidor: ${data.message}`);
-        break;
-
-      case "info":
-        console.log("ℹ️ Server info:", data.message);
-        addWebsocketMessage(`Info: ${data.message}`);
-        break;
-
-      default:
-        console.log("❓ Unknown message type:", data.type);
-        addWebsocketMessage(`Unknown: ${data.type}`);
+      addApiMessage(`Backend Error: ${error.message}`);
     }
   };
 
@@ -205,17 +63,22 @@ function App() {
     }
   };
 
-  // Iniciar cámara del usuario
+  const updateLastUpdate = () => {
+    const now = new Date();
+    setLastUpdate(now.toLocaleTimeString());
+  };
+
+  // Start camera
   const startCamera = async () => {
     try {
       console.log("📷 Requesting camera access...");
-      addWebsocketMessage("Requesting camera access...");
+      addApiMessage("Requesting camera access...");
 
       const constraints = {
         video: {
           width: { ideal: 640 },
           height: { ideal: 480 },
-          frameRate: { ideal: 10 }, // Reducido para mejor performance
+          frameRate: { ideal: 10 },
           facingMode: "user",
         },
         audio: false,
@@ -228,13 +91,13 @@ function App() {
         videoRef.current.srcObject = stream;
         await videoRef.current.play();
         console.log("✅ Camera started successfully");
-        addWebsocketMessage("Camera started successfully");
+        addApiMessage("Camera started successfully");
       }
 
       return true;
     } catch (error) {
       console.error("❌ Error accessing camera:", error);
-      addWebsocketMessage(`Camera Error: ${error.message}`);
+      addApiMessage(`Camera Error: ${error.message}`);
 
       let errorMessage = `No se pudo acceder a la cámara: ${error.message}`;
       if (error.name === "NotAllowedError") {
@@ -251,14 +114,14 @@ function App() {
     }
   };
 
-  // Detener cámara
+  // Stop camera
   const stopCamera = () => {
     console.log("🛑 Stopping camera...");
-    addWebsocketMessage("Stopping camera...");
+    addApiMessage("Stopping camera...");
 
-    if (animationRef.current) {
-      cancelAnimationFrame(animationRef.current);
-      animationRef.current = null;
+    if (frameIntervalRef.current) {
+      clearInterval(frameIntervalRef.current);
+      frameIntervalRef.current = null;
     }
 
     if (streamRef.current) {
@@ -282,14 +145,9 @@ function App() {
     frameCountRef.current = 0;
   };
 
-  // Capturar y enviar frames
-  const captureAndSendFrame = () => {
-    if (
-      !videoRef.current ||
-      !ws.current ||
-      ws.current.readyState !== WebSocket.OPEN ||
-      !isStreaming
-    ) {
+  // Capture frame and send to API
+  const captureAndSendFrame = async () => {
+    if (!videoRef.current || !isStreaming) {
       return;
     }
 
@@ -315,36 +173,61 @@ function App() {
       const base64Data = imageData.split(",")[1];
 
       // Send frame to server
-      if (ws.current.readyState === WebSocket.OPEN) {
+      try {
         setIsProcessing(true);
-        const message = {
-          action: "process_frame",
-          frame_data: base64Data,
-          timestamp: Date.now(),
-        };
 
-        ws.current.send(JSON.stringify(message));
-        console.log("📤 Sent frame to server, size:", base64Data.length);
-        addWebsocketMessage(`Sent frame: ${base64Data.length} bytes`);
+        const response = await fetch(
+          "https://api.settinel.lat/api/detect-base64",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              frame_data: base64Data,
+              timestamp: Date.now(),
+            }),
+          }
+        );
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        updateLastUpdate();
+        updateFps();
+
+        addApiMessage(`Detection: ${data.class_name}`);
+
+        if (data) {
+          console.log("🎯 Detection result:", data);
+          setDetectionInfo((prev) => ({
+            ...prev,
+            ...data,
+            statistics: data.statistics || prev.statistics,
+          }));
+        }
+
+        // Display processed frame with detections
+        if (data.annotated_frame && processedVideoRef.current) {
+          const imageUrl = `data:image/jpeg;base64,${data.annotated_frame}`;
+          processedVideoRef.current.src = imageUrl;
+          console.log("🖼️ Updated processed video frame");
+        }
+      } catch (error) {
+        console.error("❌ Error sending frame:", error);
+        addApiMessage(`API Error: ${error.message}`);
+      } finally {
+        setIsProcessing(false);
       }
-    }
-
-    // Continue capturing frames (with throttling)
-    if (isStreaming) {
-      setTimeout(() => {
-        animationRef.current = requestAnimationFrame(captureAndSendFrame);
-      }, 200); // ~5 FPS para debugging
     }
   };
 
   const startStream = async () => {
-    if (!isConnected) {
-      alert("⚠️ Primero debes conectar el WebSocket");
-      return;
-    }
-
     console.log("🎬 Starting stream...");
-    addWebsocketMessage("Starting stream...");
+    addApiMessage("Starting stream...");
 
     // Start camera
     const cameraStarted = await startCamera();
@@ -357,7 +240,7 @@ function App() {
       const waitForVideo = () => {
         if (videoRef.current.readyState >= 2) {
           console.log("🎥 Video is ready, starting frame capture");
-          addWebsocketMessage("Video ready, starting frame capture");
+          addApiMessage("Video ready, starting frame capture");
           setIsStreaming(true);
           setConnectionStatus("streaming");
 
@@ -367,8 +250,8 @@ function App() {
             canvasRef.current.height = videoRef.current.videoHeight;
           }
 
-          // Start frame capture
-          captureAndSendFrame();
+          // Start frame capture with interval (every 500ms = 2 FPS)
+          frameIntervalRef.current = setInterval(captureAndSendFrame, 500);
         } else {
           setTimeout(waitForVideo, 100);
         }
@@ -379,29 +262,16 @@ function App() {
 
   const stopStream = () => {
     console.log("⏹️ Stopping stream...");
-    addWebsocketMessage("Stopping stream...");
+    addApiMessage("Stopping stream...");
     setIsStreaming(false);
     setConnectionStatus("connected");
     stopCamera();
-
-    if (ws.current && isConnected) {
-      ws.current.send(JSON.stringify({ action: "stop_stream" }));
-    }
-  };
-
-  const disconnectWebSocket = () => {
-    console.log("🔌 Disconnecting WebSocket...");
-    addWebsocketMessage("Disconnecting WebSocket...");
-    stopStream();
-    if (ws.current) {
-      ws.current.close();
-    }
   };
 
   const resetStatistics = async () => {
     try {
       console.log("🔄 Resetting statistics...");
-      addWebsocketMessage("Resetting statistics...");
+      addApiMessage("Resetting statistics...");
       const response = await fetch(
         "https://api.settinel.lat/api/reset_statistics",
         {
@@ -415,17 +285,12 @@ function App() {
           counts: { sin_chaleco: 0, con_chaleco: 0 },
         }));
         console.log("✅ Statistics reset successfully");
-        addWebsocketMessage("Statistics reset successfully");
+        addApiMessage("Statistics reset successfully");
       }
     } catch (error) {
       console.error("❌ Error resetting statistics:", error);
-      addWebsocketMessage(`Reset Error: ${error.message}`);
+      addApiMessage(`Reset Error: ${error.message}`);
     }
-  };
-
-  const updateLastUpdate = () => {
-    const now = new Date();
-    setLastUpdate(now.toLocaleTimeString());
   };
 
   const getDetectionStatusClass = () => {
@@ -462,9 +327,6 @@ function App() {
   // Cleanup on unmount
   useEffect(() => {
     return () => {
-      if (ws.current) {
-        ws.current.close();
-      }
       stopCamera();
     };
   }, []);
@@ -474,7 +336,7 @@ function App() {
       <div className="container">
         <div className="header">
           <h1>🔍 Detección de Chalecos de Seguridad</h1>
-          <p>Detección en tiempo real con IA</p>
+          <p>Detección en tiempo real con IA - Sin WebSockets</p>
         </div>
 
         <div className={`connection-status ${connectionStatus}`}>
@@ -490,18 +352,9 @@ function App() {
             <h3>Control de Cámara</h3>
             <div className="button-group">
               <button
-                className={`btn btn-primary ${!isConnected ? "" : "disabled"}`}
-                onClick={connectWebSocket}
-                disabled={isConnected}
-              >
-                🔗 Conectar
-              </button>
-              <button
-                className={`btn btn-success ${
-                  isConnected && !isStreaming ? "" : "disabled"
-                }`}
+                className={`btn btn-success ${!isStreaming ? "" : "disabled"}`}
                 onClick={startStream}
-                disabled={!isConnected || isStreaming}
+                disabled={isStreaming}
               >
                 🎬 Iniciar Detección
               </button>
@@ -514,6 +367,9 @@ function App() {
               </button>
               <button className="btn btn-warning" onClick={resetStatistics}>
                 🔄 Reiniciar Stats
+              </button>
+              <button className="btn btn-info" onClick={checkBackendStatus}>
+                🔍 Verificar Backend
               </button>
             </div>
           </div>
@@ -542,6 +398,8 @@ function App() {
                 display: isStreaming ? "block" : "none",
                 maxWidth: "100%",
                 height: "auto",
+                border: "2px solid #333",
+                borderRadius: "8px",
               }}
             />
 
@@ -550,8 +408,10 @@ function App() {
                 <h2>🎥 Presiona "Iniciar Detección"</h2>
                 <p>Se solicitará acceso a tu cámara web</p>
                 <p>Los cuadros de detección aparecerán aquí</p>
-                {!isConnected && (
-                  <p className="warning">⚠️ Primero debes conectar</p>
+                {connectionStatus === "error" && (
+                  <p className="warning">
+                    ⚠️ Problema de conexión con el backend
+                  </p>
                 )}
               </div>
             )}
@@ -618,9 +478,9 @@ function App() {
             </div>
 
             <div className="info-card">
-              <h3>🔧 Debug WebSocket</h3>
-              <div className="websocket-log">
-                {websocketMessages.map((msg, index) => (
+              <h3>🔧 Debug API</h3>
+              <div className="api-log">
+                {apiMessages.map((msg, index) => (
                   <div key={index} className="log-entry">
                     {msg}
                   </div>
@@ -631,8 +491,13 @@ function App() {
             <div className="info-card">
               <h3>⚙️ Sistema</h3>
               <div className="status-item">
-                <strong>WebSocket:</strong>
-                <span>{isConnected ? "✅ Conectado" : "❌ Desconectado"}</span>
+                <strong>Backend:</strong>
+                <span>
+                  {connectionStatus === "connected" ||
+                  connectionStatus === "streaming"
+                    ? "✅ Conectado"
+                    : "❌ Desconectado"}
+                </span>
               </div>
               <div className="status-item">
                 <strong>Cámara:</strong>
