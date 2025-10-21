@@ -21,13 +21,21 @@ http:
           - "http://localhost:3000"
           - "http://127.0.0.1:3000"
 
-    # WebSocket support - CRÍTICO
+    # WebSocket support
     websocket-headers:
       headers:
         customRequestHeaders:
           X-Forwarded-Proto: "https"
-        customResponseHeaders:
-          X-WebSocket-Endpoint: "api.settinel.lat"
+
+    # Secure headers (el que estaba faltando)
+    secure-headers:
+      headers:
+        sslRedirect: true
+        forceSTSHeader: true
+        stsIncludeSubdomains: true
+        stsPreload: true
+        stsSeconds: 31536000
+        customFrameOptionsValue: "SAMEORIGIN"
 
   routers:
     # Backend API - ALL routes including WebSocket
@@ -47,6 +55,8 @@ http:
       rule: "Host(`settinel.lat`) || Host(`www.settinel.lat`)"
       entryPoints:
         - "websecure"
+      middlewares:
+        - "secure-headers"
       service: "frontend"
       tls:
         certResolver: "le"
