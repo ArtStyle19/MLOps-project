@@ -16,6 +16,8 @@ from typing import Dict
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
+
 from model_loader import download_model_from_s3, load_yolo_model
 
 app = FastAPI(
@@ -154,6 +156,7 @@ detection_stats: Dict[str, Dict] = {
 #         }
 
 
+
 def process_frame_with_detection(frame: np.ndarray) -> dict:
     """Process frame with YOLO detection and return detection info with annotated image"""
     try:
@@ -166,7 +169,7 @@ def process_frame_with_detection(frame: np.ndarray) -> dict:
         
         # Realizar detección con configuración robusta
         try:
-            results = model(frame, verbose=False, conf=0.3, iou=0.5)
+            results = model(frame,device='cpu', verbose=False, conf=0.3, iou=0.5)
             logger.info(f"✅ Detection completed, {len(results[0].boxes) if len(results) > 0 else 0} boxes found")
         except Exception as e:
             logger.error(f"❌ YOLO detection error: {e}")

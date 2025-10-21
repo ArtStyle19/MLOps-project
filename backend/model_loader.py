@@ -7,6 +7,8 @@ from ultralytics import YOLO
 
 logger = logging.getLogger(__name__)
 
+os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
+
 def download_model_from_s3():
     """Descarga el modelo desde S3 si no está en el servidor"""
     local_path = "weights/epoch20.pt"   # Dónde se guardará localmente
@@ -46,10 +48,17 @@ def download_model_from_s3():
 
 def load_yolo_model(weights_path: str):
     try:
+        device = torch.device('cpu')
         logger.info("🚀 Cargando modelo YOLO...")
         # Intenta cargar normalmente
         model = YOLO(weights_path)
+        model.to(device)
+        logger.info("✅ Model loaded directly to CPU")
 
+        # CONFIGURACIÓN EXTRA PARA CPU
+        model.args.device = 'cpu'
+        if hasattr(model, 'model'):
+            model.model.to(device)
         logger.info("✅ Modelo YOLO cargado correctamente")
         return model
 

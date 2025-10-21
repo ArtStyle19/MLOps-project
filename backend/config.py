@@ -12,4 +12,5 @@ class Settings:
     S3_BUCKET = os.getenv("S3_BUCKET")
     S3_MODEL_KEY = os.getenv("S3_MODEL_KEY", "weights/best.pt")
     LOCAL_MODEL_PATH = os.getenv("LOCAL_MODEL_PATH", "weights/epoch20.pt")
+    CUDA_VISIBLE_DEVICES = '-1'
 settings = Settings()
