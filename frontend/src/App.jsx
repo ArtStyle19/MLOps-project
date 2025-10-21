@@ -16,6 +16,7 @@ function App() {
   const [lastUpdate, setLastUpdate] = useState("--");
   const [fps, setFps] = useState(0);
   const [apiMessages, setApiMessages] = useState([]);
+  const [debugInfo, setDebugInfo] = useState("");
 
   const videoRef = useRef(null);
   const processedVideoRef = useRef(null);
@@ -31,22 +32,43 @@ function App() {
   }, []);
 
   const addApiMessage = (message) => {
+    console.log("🔧 DEBUG:", message);
     setApiMessages((prev) => [
-      ...prev.slice(-9),
+      ...prev.slice(-14),
       `${new Date().toLocaleTimeString()}: ${message}`,
     ]);
   };
 
+  const setDebug = (message) => {
+    console.log("🐛 DEBUG:", message);
+    setDebugInfo(message);
+  };
+
   const checkBackendStatus = async () => {
     try {
+      setDebug("Checking backend status...");
+      addApiMessage("Checking backend status...");
+
       const response = await fetch("https://api.settinel.lat/api/status");
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
       const data = await response.json();
       setMessage(data.message || "Backend connected");
       setConnectionStatus("connected");
-      addApiMessage("Backend status: Connected");
+      setDebug(`Backend OK: ${data.status}, Model: ${data.model_loaded}`);
+      addApiMessage(
+        `Backend status: Connected - Model: ${
+          data.model_loaded ? "Loaded" : "Not loaded"
+        }`
+      );
     } catch (error) {
-      setMessage("Error connecting to backend");
+      console.error("Backend status error:", error);
+      setMessage(`Error: ${error.message}`);
       setConnectionStatus("error");
+      setDebug(`Backend Error: ${error.message}`);
       addApiMessage(`Backend Error: ${error.message}`);
     }
   };
@@ -71,38 +93,56 @@ function App() {
   // Start camera
   const startCamera = async () => {
     try {
-      console.log("📷 Requesting camera access...");
+      setDebug("Requesting camera access...");
       addApiMessage("Requesting camera access...");
+
+      // Verificar si el navegador soporta mediaDevices
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error("Camera API not supported in this browser");
+      }
 
       const constraints = {
         video: {
           width: { ideal: 640 },
           height: { ideal: 480 },
           frameRate: { ideal: 10 },
-          facingMode: "user",
+          facingMode: "environment", // Intentar con cámara trasera primero
         },
         audio: false,
       };
 
+      setDebug("Calling getUserMedia...");
       const stream = await navigator.mediaDevices.getUserMedia(constraints);
       streamRef.current = stream;
 
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
-        await videoRef.current.play();
-        console.log("✅ Camera started successfully");
-        addApiMessage("Camera started successfully");
+
+        // Esperar a que el video esté listo
+        await new Promise((resolve) => {
+          videoRef.current.onloadedmetadata = () => {
+            videoRef.current.play().then(resolve);
+          };
+        });
+
+        setDebug(
+          `Camera started: ${videoRef.current.videoWidth}x${videoRef.current.videoHeight}`
+        );
+        addApiMessage(
+          `Camera started: ${videoRef.current.videoWidth}x${videoRef.current.videoHeight}`
+        );
       }
 
       return true;
     } catch (error) {
       console.error("❌ Error accessing camera:", error);
+      setDebug(`Camera Error: ${error.message}`);
       addApiMessage(`Camera Error: ${error.message}`);
 
       let errorMessage = `No se pudo acceder a la cámara: ${error.message}`;
       if (error.name === "NotAllowedError") {
         errorMessage =
-          "Permiso de cámara denegado. Por favor permite el acceso a la cámara.";
+          "Permiso de cámara denegado. Por favor permite el acceso a la cámara y recarga la página.";
       } else if (error.name === "NotFoundError") {
         errorMessage = "No se encontró ninguna cámara disponible.";
       } else if (error.name === "NotSupportedError") {
@@ -116,7 +156,7 @@ function App() {
 
   // Stop camera
   const stopCamera = () => {
-    console.log("🛑 Stopping camera...");
+    setDebug("Stopping camera...");
     addApiMessage("Stopping camera...");
 
     if (frameIntervalRef.current) {
@@ -155,16 +195,23 @@ function App() {
     const canvas = canvasRef.current;
     const context = canvas.getContext("2d");
 
-    if (video.videoWidth > 0 && video.videoHeight > 0) {
-      // Update canvas size if needed
-      if (
-        canvas.width !== video.videoWidth ||
-        canvas.height !== video.videoHeight
-      ) {
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-      }
+    // Verificar que el video esté listo
+    if (video.videoWidth === 0 || video.videoHeight === 0) {
+      setDebug("Video not ready, skipping frame");
+      return;
+    }
 
+    // Update canvas size if needed
+    if (
+      canvas.width !== video.videoWidth ||
+      canvas.height !== video.videoHeight
+    ) {
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      setDebug(`Canvas resized to: ${canvas.width}x${canvas.height}`);
+    }
+
+    try {
       // Draw current frame to canvas
       context.drawImage(video, 0, 0, canvas.width, canvas.height);
 
@@ -172,74 +219,89 @@ function App() {
       const imageData = canvas.toDataURL("image/jpeg", 0.7);
       const base64Data = imageData.split(",")[1];
 
+      setDebug(`Sending frame: ${base64Data.length} bytes`);
+      addApiMessage(`Sending frame: ${base64Data.length} bytes`);
+
       // Send frame to server
-      try {
-        setIsProcessing(true);
+      setIsProcessing(true);
 
-        const response = await fetch(
-          "https://api.settinel.lat/api/detect-base64",
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              frame_data: base64Data,
-              timestamp: Date.now(),
-            }),
-          }
-        );
-
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
+      const startTime = Date.now();
+      const response = await fetch(
+        "https://api.settinel.lat/api/detect-base64",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            frame_data: base64Data,
+            timestamp: Date.now(),
+          }),
         }
+      );
 
-        const data = await response.json();
+      const responseTime = Date.now() - startTime;
 
-        updateLastUpdate();
-        updateFps();
-
-        addApiMessage(`Detection: ${data.class_name}`);
-
-        if (data) {
-          console.log("🎯 Detection result:", data);
-          setDetectionInfo((prev) => ({
-            ...prev,
-            ...data,
-            statistics: data.statistics || prev.statistics,
-          }));
-        }
-
-        // Display processed frame with detections
-        if (data.annotated_frame && processedVideoRef.current) {
-          const imageUrl = `data:image/jpeg;base64,${data.annotated_frame}`;
-          processedVideoRef.current.src = imageUrl;
-          console.log("🖼️ Updated processed video frame");
-        }
-      } catch (error) {
-        console.error("❌ Error sending frame:", error);
-        addApiMessage(`API Error: ${error.message}`);
-      } finally {
-        setIsProcessing(false);
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
       }
+
+      const data = await response.json();
+
+      updateLastUpdate();
+      updateFps();
+
+      setDebug(`Detection received: ${data.class_name} (${responseTime}ms)`);
+      addApiMessage(`Detection: ${data.class_name} (${responseTime}ms)`);
+
+      if (data) {
+        console.log("🎯 Detection result:", data);
+        setDetectionInfo((prev) => ({
+          ...prev,
+          ...data,
+          statistics: data.statistics || prev.statistics,
+        }));
+      }
+
+      // Display processed frame with detections
+      if (data.annotated_frame && processedVideoRef.current) {
+        const imageUrl = `data:image/jpeg;base64,${data.annotated_frame}`;
+        processedVideoRef.current.src = imageUrl;
+        setDebug("Processed frame updated");
+      } else {
+        setDebug("No annotated_frame in response");
+      }
+    } catch (error) {
+      console.error("❌ Error sending frame:", error);
+      setDebug(`API Error: ${error.message}`);
+      addApiMessage(`API Error: ${error.message}`);
+    } finally {
+      setIsProcessing(false);
     }
   };
 
   const startStream = async () => {
-    console.log("🎬 Starting stream...");
+    setDebug("Starting stream...");
     addApiMessage("Starting stream...");
 
     // Start camera
     const cameraStarted = await startCamera();
     if (!cameraStarted) {
+      setDebug("Camera failed to start");
       return;
     }
 
     // Wait for video to be ready
     if (videoRef.current) {
       const waitForVideo = () => {
-        if (videoRef.current.readyState >= 2) {
-          console.log("🎥 Video is ready, starting frame capture");
+        if (
+          videoRef.current.readyState >= 2 &&
+          videoRef.current.videoWidth > 0
+        ) {
+          setDebug(
+            `Video ready: ${videoRef.current.videoWidth}x${videoRef.current.videoHeight}`
+          );
           addApiMessage("Video ready, starting frame capture");
           setIsStreaming(true);
           setConnectionStatus("streaming");
@@ -248,11 +310,16 @@ function App() {
           if (canvasRef.current) {
             canvasRef.current.width = videoRef.current.videoWidth;
             canvasRef.current.height = videoRef.current.videoHeight;
+            setDebug(
+              `Canvas set to: ${canvasRef.current.width}x${canvasRef.current.height}`
+            );
           }
 
-          // Start frame capture with interval (every 500ms = 2 FPS)
-          frameIntervalRef.current = setInterval(captureAndSendFrame, 500);
+          // Start frame capture with interval (every 1000ms = 1 FPS para debugging)
+          frameIntervalRef.current = setInterval(captureAndSendFrame, 1000);
+          setDebug("Frame capture started (1 FPS)");
         } else {
+          setDebug("Waiting for video to be ready...");
           setTimeout(waitForVideo, 100);
         }
       };
@@ -261,7 +328,7 @@ function App() {
   };
 
   const stopStream = () => {
-    console.log("⏹️ Stopping stream...");
+    setDebug("Stopping stream...");
     addApiMessage("Stopping stream...");
     setIsStreaming(false);
     setConnectionStatus("connected");
@@ -270,7 +337,7 @@ function App() {
 
   const resetStatistics = async () => {
     try {
-      console.log("🔄 Resetting statistics...");
+      setDebug("Resetting statistics...");
       addApiMessage("Resetting statistics...");
       const response = await fetch(
         "https://api.settinel.lat/api/reset_statistics",
@@ -284,12 +351,44 @@ function App() {
           statistics: { sin_chaleco: 0, con_chaleco: 0 },
           counts: { sin_chaleco: 0, con_chaleco: 0 },
         }));
-        console.log("✅ Statistics reset successfully");
+        setDebug("Statistics reset successfully");
         addApiMessage("Statistics reset successfully");
       }
     } catch (error) {
       console.error("❌ Error resetting statistics:", error);
+      setDebug(`Reset Error: ${error.message}`);
       addApiMessage(`Reset Error: ${error.message}`);
+    }
+  };
+
+  const testBackendConnection = async () => {
+    try {
+      setDebug("Testing backend connection...");
+      const response = await fetch(
+        "https://api.settinel.lat/api/detect-base64",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            frame_data: "test", // Datos inválidos para probar
+            timestamp: Date.now(),
+          }),
+        }
+      );
+
+      const result = await response.text();
+      setDebug(
+        `Backend test response: ${response.status} - ${result.substring(
+          0,
+          100
+        )}`
+      );
+      addApiMessage(`Backend test: ${response.status}`);
+    } catch (error) {
+      setDebug(`Backend test error: ${error.message}`);
+      addApiMessage(`Backend test error: ${error.message}`);
     }
   };
 
@@ -335,8 +434,8 @@ function App() {
     <div className="app">
       <div className="container">
         <div className="header">
-          <h1>🔍 Detección de Chalecos de Seguridad</h1>
-          <p>Detección en tiempo real con IA - Sin WebSockets</p>
+          <h1>🔍 Detección de Chalecos de Seguridad - DEBUG</h1>
+          <p>Versión con debugging completo</p>
         </div>
 
         <div className={`connection-status ${connectionStatus}`}>
@@ -370,6 +469,12 @@ function App() {
               </button>
               <button className="btn btn-info" onClick={checkBackendStatus}>
                 🔍 Verificar Backend
+              </button>
+              <button
+                className="btn btn-secondary"
+                onClick={testBackendConnection}
+              >
+                🧪 Test Backend
               </button>
             </div>
           </div>
@@ -474,6 +579,13 @@ function App() {
                     {detectionInfo.statistics.con_chaleco || 0}
                   </div>
                 </div>
+              </div>
+            </div>
+
+            <div className="info-card debug-card">
+              <h3>🐛 Debug Info</h3>
+              <div className="debug-info">
+                {debugInfo || "No debug information yet..."}
               </div>
             </div>
 

@@ -1,61 +1,27 @@
+# # traefik/dynamic.yml
+# http:
+#   middlewares:
+#     secure-headers:
+#       headers:
+#         frameDeny: true
+#         browserXssFilter: true
+#         contentTypeNosniff: true
+
 http:
   middlewares:
+    secure-headers:
+      headers:
+        frameDeny: true
+        browserXssFilter: true
+        contentTypeNosniff: true
+        sslRedirect: true
+
     redirect-to-https:
       redirectScheme:
         scheme: https
         permanent: true
 
-    cors-headers:
-      headers:
-        accessControlAllowCredentials: true
-        accessControlAllowHeaders:
-          - "*"
-        accessControlAllowMethods:
-          - "GET,POST,PUT,DELETE,OPTIONS"
-        accessControlAllowOriginList:
-          - "https://settinel.lat"
-          - "https://www.settinel.lat"
-          - "https://api.settinel.lat"
-          - "http://localhost:3000"
-          - "http://127.0.0.1:3000"
-        accessControlMaxAge: 100
-        addVaryHeader: true
-
-  routers:
-    backend:
-      rule: "Host(`api.settinel.lat`)"
-      entryPoints:
-        - "websecure"
-      middlewares:
-        - "cors-headers"
-      service: "backend"
-      tls:
-        certResolver: "le"
-
-    frontend:
-      rule: "Host(`settinel.lat`) || Host(`www.settinel.lat`)"
-      entryPoints:
-        - "websecure"
-      service: "frontend"
-      tls:
-        certResolver: "le"
-
-    frontend-redirect:
-      rule: "Host(`settinel.lat`) || Host(`www.settinel.lat`)"
-      entryPoints:
-        - "web"
-      middlewares:
-        - "redirect-to-https"
-      service: "frontend"
-
-  services:
-    backend:
-      loadBalancer:
-        servers:
-          - url: "http://backend:5000"
-        passHostHeader: true
-
-    frontend:
-      loadBalancer:
-        servers:
-          - url: "http://frontend:80"
+tls:
+  options:
+    default:
+      minVersion: VersionTLS12
