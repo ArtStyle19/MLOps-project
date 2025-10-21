@@ -314,3 +314,38 @@ body {
 .detection-status {
   animation: pulse 0.5s ease-in-out;
 }
+
+/* Estilos para los valores de estadísticas */
+.stat-value.danger {
+  color: #dc3545;
+  font-weight: bold;
+}
+
+.stat-value.safe {
+  color: #28a745;
+  font-weight: bold;
+}
+
+/* Mejoras para el estado de detección */
+.detection-status {
+  padding: 10px;
+  border-radius: 5px;
+  text-align: center;
+  font-weight: bold;
+  margin: 10px 0;
+}
+
+.detection-neutral {
+  background-color: #6c757d;
+  color: white;
+}
+
+.detection-safe {
+  background-color: #28a745;
+  color: white;
+}
+
+.detection-danger {
+  background-color: #dc3545;
+  color: white;
+}

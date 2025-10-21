@@ -51,7 +51,7 @@ class ConnectionManager:
         logger.info(f"Client disconnected: {client_id}")
 
     async def process_frame_with_detection(self, frame: np.ndarray, model, client_id: str) -> dict:
-        """Process frame with YOLO detection and return detection info"""
+        """Process frame with YOLO detection and return detection info with annotated image"""
         try:
             # Perform detection
             results = model(frame, verbose=False, conf=0.5)
@@ -62,6 +62,9 @@ class ConnectionManager:
                 "confidence": 0.0,
                 "counts": {"sin_chaleco": 0, "con_chaleco": 0}
             }
+            
+            # Create a copy of the frame to draw on
+            annotated_frame = frame.copy()
             
             if len(results[0].boxes) > 0:
                 # Use the highest confidence detection for main info
@@ -82,17 +85,44 @@ class ConnectionManager:
                     "confidence": confidence
                 })
                 
-                # Count all detections above confidence threshold
-                for box in boxes:
+                # Count all detections above confidence threshold and draw boxes
+                for i, box in enumerate(boxes):
                     box_confidence = float(box.conf[0])
                     if box_confidence > 0.5:
                         box_class_id = int(box.cls[0])
                         box_class_name = class_names.get(box_class_id, f"Clase {box_class_id}")
                         
+                        # Get box coordinates
+                        x1, y1, x2, y2 = box.xyxy[0].cpu().numpy()
+                        
+                        # Define colors based on class
                         if "sin_chaleco" in box_class_name.lower():
+                            color = (0, 0, 255)  # Red for no vest
                             detection_info["counts"]["sin_chaleco"] += 1
                         elif "con_chaleco" in box_class_name.lower():
+                            color = (0, 255, 0)  # Green for vest
                             detection_info["counts"]["con_chaleco"] += 1
+                        else:
+                            color = (255, 255, 0)  # Yellow for other
+                        
+                        # Draw bounding box
+                        cv2.rectangle(annotated_frame, 
+                                    (int(x1), int(y1)), 
+                                    (int(x2), int(y2)), 
+                                    color, 2)
+                        
+                        # Draw label background
+                        label = f"{box_class_name} {box_confidence:.2f}"
+                        label_size = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 2)[0]
+                        cv2.rectangle(annotated_frame,
+                                    (int(x1), int(y1) - label_size[1] - 10),
+                                    (int(x1) + label_size[0], int(y1)),
+                                    color, -1)
+                        
+                        # Draw label text
+                        cv2.putText(annotated_frame, label,
+                                (int(x1), int(y1) - 5),
+                                cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
                 
                 # Update global statistics
                 if detection_info["counts"]["sin_chaleco"] > 0:
@@ -100,15 +130,26 @@ class ConnectionManager:
                 if detection_info["counts"]["con_chaleco"] > 0:
                     self.detection_stats[client_id]["con_chaleco"] += 1
             
+            # Encode the annotated frame to send back to frontend
+            _, buffer = cv2.imencode('.jpg', annotated_frame, [cv2.IMWRITE_JPEG_QUALITY, 80])
+            encoded_image = base64.b64encode(buffer).decode('utf-8')
+            
+            detection_info["annotated_frame"] = encoded_image
+            
             return detection_info
             
         except Exception as e:
             logger.error(f"Detection error: {e}")
+            # Return original frame in case of error
+            _, buffer = cv2.imencode('.jpg', frame)
+            encoded_image = base64.b64encode(buffer).decode('utf-8')
+            
             return {
                 "detected": False, 
                 "class_name": "Error en detección", 
                 "confidence": 0.0, 
-                "counts": {"sin_chaleco": 0, "con_chaleco": 0}
+                "counts": {"sin_chaleco": 0, "con_chaleco": 0},
+                "annotated_frame": encoded_image
             }
 
 # Global instances
@@ -218,13 +259,17 @@ async def websocket_camera(websocket: WebSocket):
                     detection_info = await connection_manager.process_frame_with_detection(
                         frame, model, client_id
                     )
-                    
+
                     # Agregar estadísticas y enviar resultado
                     detection_info["statistics"] = connection_manager.detection_stats[client_id].copy()
-                    
+
+                    # Extraer el frame anotado para enviarlo por separado
+                    annotated_frame = detection_info.pop("annotated_frame", None)
+
                     await websocket.send_json({
                         "type": "detection_result",
                         "detection": detection_info,
+                        "annotated_frame": annotated_frame,  # Enviar frame con cuadros
                         "timestamp": time.time()
                     })
                     
