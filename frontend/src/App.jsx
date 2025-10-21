@@ -270,12 +270,32 @@ function App() {
       }
 
       // Display processed frame with detections
+      // Display processed frame with detections
       if (data.annotated_frame && processedVideoRef.current) {
-        const imageUrl = `data:image/jpeg;base64,${data.annotated_frame}`;
-        processedVideoRef.current.src = imageUrl;
-        setDebug("Processed frame updated");
+        try {
+          let annotatedFrame = data.annotated_frame.trim();
+
+          // Si el backend no envía el prefijo, se lo agregamos
+          if (!annotatedFrame.startsWith("data:image")) {
+            annotatedFrame = `data:image/jpeg;base64,${annotatedFrame}`;
+          }
+
+          // Validar que sea un base64 válido (opcional, solo debug)
+          if (annotatedFrame.length < 100) {
+            console.warn(
+              "⚠️ annotated_frame too short:",
+              annotatedFrame.slice(0, 50)
+            );
+          }
+
+          processedVideoRef.current.src = annotatedFrame;
+          setDebug("✅ Processed frame updated successfully");
+        } catch (imgError) {
+          console.error("⚠️ Error displaying annotated frame:", imgError);
+          setDebug(`Error displaying frame: ${imgError.message}`);
+        }
       } else {
-        setDebug("No annotated_frame in response");
+        setDebug("⚠️ No annotated_frame in response or ref missing");
       }
     } catch (error) {
       console.error("❌ Error sending frame:", error);
