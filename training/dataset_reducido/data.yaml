@@ -1,0 +1,8 @@
+names:
+- sin_chaleco
+- con_chaleco
+nc: 2
+path: D:\UNIVERSIDAD\PROYECTOS\IX-MODELO-YOLO\dataset_reducido
+test: test/images
+train: train/images
+val: valid/images
