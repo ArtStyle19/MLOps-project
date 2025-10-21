@@ -21,20 +21,23 @@ http:
           - "http://localhost:3000"
           - "http://127.0.0.1:3000"
 
-    # WebSocket support
+    # WebSocket support - CRÍTICO
     websocket-headers:
       headers:
         customRequestHeaders:
           X-Forwarded-Proto: "https"
+        customResponseHeaders:
+          X-WebSocket-Endpoint: "api.settinel.lat"
 
   routers:
-    # Backend API - ALL routes
+    # Backend API - ALL routes including WebSocket
     backend-all:
       rule: "Host(`api.settinel.lat`)"
       entryPoints:
         - "websecure"
       middlewares:
         - "cors-headers"
+        - "websocket-headers"
       service: "backend"
       tls:
         certResolver: "le"

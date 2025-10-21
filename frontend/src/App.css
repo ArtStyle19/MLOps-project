@@ -307,3 +307,41 @@
     justify-content: center;
   }
 }
+
+.websocket-log {
+  height: 120px;
+  overflow-y: auto;
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 4px;
+  padding: 8px;
+  font-family: monospace;
+  font-size: 0.8em;
+}
+
+.log-entry {
+  margin: 2px 0;
+  padding: 2px 4px;
+  border-radius: 2px;
+}
+
+.log-entry:nth-child(odd) {
+  background: #e9ecef;
+}
+
+.websocket-log::-webkit-scrollbar {
+  width: 6px;
+}
+
+.websocket-log::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+.websocket-log::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 3px;
+}
+
+.websocket-log::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
