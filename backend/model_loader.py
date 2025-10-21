@@ -55,10 +55,10 @@ def load_yolo_model(weights_path: str):
         model.to(device)
         logger.info("✅ Model loaded directly to CPU")
 
-        # CONFIGURACIÓN EXTRA PARA CPU
-        model.args.device = 'cpu'
-        if hasattr(model, 'model'):
-            model.model.to(device)
+        # # CONFIGURACIÓN EXTRA PARA CPU
+        # model.args.device = 'cpu'
+        # if hasattr(model, 'model'):
+        #     model.model.to(device)
         logger.info("✅ Modelo YOLO cargado correctamente")
         return model
 
