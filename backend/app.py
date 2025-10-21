@@ -53,6 +53,8 @@ class ConnectionManager:
     async def process_frame_with_detection(self, frame: np.ndarray, model, client_id: str) -> dict:
         """Process frame with YOLO detection and return detection info with annotated image"""
         try:
+            logger.info(f"Processing frame for {client_id} - Frame shape: {frame.shape}")
+            
             # Perform detection
             results = model(frame, verbose=False, conf=0.5)
             
@@ -67,16 +69,17 @@ class ConnectionManager:
             annotated_frame = frame.copy()
             
             if len(results[0].boxes) > 0:
-                # Use the highest confidence detection for main info
                 boxes = results[0].boxes
+                class_names = getattr(results[0], 'names', {0: 'sin_chaleco', 1: 'con_chaleco'})
+                
+                logger.info(f"Detections found: {len(boxes)}")
+                
+                # Use the highest confidence detection for main info
                 max_confidence_idx = np.argmax([float(box.conf[0]) for box in boxes])
                 box = boxes[max_confidence_idx]
                 
                 confidence = float(box.conf[0])
                 class_id = int(box.cls[0])
-                
-                # Get class names from model
-                class_names = getattr(results[0], 'names', {0: 'sin_chaleco', 1: 'con_chaleco'})
                 class_name = class_names.get(class_id, f"Clase {class_id}")
                 
                 detection_info.update({
@@ -85,10 +88,10 @@ class ConnectionManager:
                     "confidence": confidence
                 })
                 
-                # Count all detections above confidence threshold and draw boxes
+                # Count all detections and draw boxes
                 for i, box in enumerate(boxes):
                     box_confidence = float(box.conf[0])
-                    if box_confidence > 0.5:
+                    if box_confidence > 0.3:  # Bajar umbral para ver más detecciones
                         box_class_id = int(box.cls[0])
                         box_class_name = class_names.get(box_class_id, f"Clase {box_class_id}")
                         
@@ -109,20 +112,24 @@ class ConnectionManager:
                         cv2.rectangle(annotated_frame, 
                                     (int(x1), int(y1)), 
                                     (int(x2), int(y2)), 
-                                    color, 2)
+                                    color, 3)
                         
-                        # Draw label background
+                        # Draw label
                         label = f"{box_class_name} {box_confidence:.2f}"
-                        label_size = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 2)[0]
+                        label_size = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.6, 2)[0]
+                        
+                        # Label background
                         cv2.rectangle(annotated_frame,
                                     (int(x1), int(y1) - label_size[1] - 10),
                                     (int(x1) + label_size[0], int(y1)),
                                     color, -1)
                         
-                        # Draw label text
+                        # Label text
                         cv2.putText(annotated_frame, label,
                                 (int(x1), int(y1) - 5),
-                                cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
+                                cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
+                
+                logger.info(f"Detection counts: {detection_info['counts']}")
                 
                 # Update global statistics
                 if detection_info["counts"]["sin_chaleco"] > 0:
@@ -130,7 +137,13 @@ class ConnectionManager:
                 if detection_info["counts"]["con_chaleco"] > 0:
                     self.detection_stats[client_id]["con_chaleco"] += 1
             
-            # Encode the annotated frame to send back to frontend
+            # Add frame counter and info text
+            cv2.putText(annotated_frame, f"Detections: {detection_info['counts']}", 
+                    (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
+            cv2.putText(annotated_frame, f"Status: {detection_info['class_name']}", 
+                    (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
+            
+            # Encode the annotated frame
             _, buffer = cv2.imencode('.jpg', annotated_frame, [cv2.IMWRITE_JPEG_QUALITY, 80])
             encoded_image = base64.b64encode(buffer).decode('utf-8')
             
@@ -146,11 +159,14 @@ class ConnectionManager:
             
             return {
                 "detected": False, 
-                "class_name": "Error en detección", 
+                "class_name": f"Error: {str(e)}", 
                 "confidence": 0.0, 
                 "counts": {"sin_chaleco": 0, "con_chaleco": 0},
                 "annotated_frame": encoded_image
             }
+    
+
+
 
 # Global instances
 connection_manager = ConnectionManager()
