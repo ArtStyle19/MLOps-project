@@ -185,9 +185,14 @@ function App() {
     frameCountRef.current = 0;
   };
 
+  const isStreamingRef = useRef(false);
+  useEffect(() => {
+    isStreamingRef.current = isStreaming;
+  }, [isStreaming]);
+
   // Capture frame and send to API
   const captureAndSendFrame = async () => {
-    if (!videoRef.current || !isStreaming) {
+    if (!videoRef.current || !isStreamingRef.current) {
       return;
     }
 
