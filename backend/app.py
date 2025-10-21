@@ -244,7 +244,7 @@ def process_frame_with_detection(frame: np.ndarray) -> dict:
                     "class_name": f"Detecciones: {detection_info['counts']}",
                     "confidence": box_confidence if 'box_confidence' in locals() else 0.0
                 })
-            
+            create_error_response
             logger.info(f"📊 Detection counts: {detection_info['counts']}")
             
             # Actualizar estadísticas globales
